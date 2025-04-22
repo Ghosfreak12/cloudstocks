@@ -18,7 +18,7 @@ jobs:
           node-version: 18
 
       - name: Zip Lambda function
-        run: zip -j function.zip backend/stockFetcher.js
+        run: zip -j function.zip backend/stockfetcher.js
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v2
@@ -32,3 +32,4 @@ jobs:
           aws lambda update-function-code \
             --function-name stockLambda \
             --zip-file fileb://function.zip
+            
