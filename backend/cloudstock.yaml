@@ -1,0 +1,65 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Resources:
+  StockPricesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: StockPrices
+      AttributeDefinitions:
+        - AttributeName: symbol
+          AttributeType: S
+        - AttributeName: timestamp
+          AttributeType: S
+      KeySchema:
+        - AttributeName: symbol
+          KeyType: HASH
+        - AttributeName: timestamp
+          KeyType: RANGE
+      BillingMode: PAY_PER_REQUEST
+
+  StockLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: stockLambda
+      Runtime: nodejs18.x
+      Handler: stockFetcher.handler
+      Timeout: 10
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Environment:
+        Variables:
+          ALPHA_API_KEY: "REPLACE_ME"
+      Code:
+        ZipFile: |
+          exports.handler = async (event) => {
+            return {
+              statusCode: 200,
+              body: JSON.stringify({ message: "placeholder" })
+            };
+          };
+
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: LambdaExecutionRole
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: LambdaPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:*
+                  - dynamodb:*
+                Resource: "*"
+
+  StockAPI:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: stock-api
+      ProtocolType: HTTP
