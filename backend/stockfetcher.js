@@ -2,7 +2,7 @@ const https = require('https');
 const ALPHA_VANTAGE_API_KEY = process.env.ALPHA_API_KEY;
 
 const fetchStockPrice = (symbol) => {
-  const url = `https://www.alphavantage.co/query?function=TIME_SERIES_INTRADAY&symbol=${symbol}&interval=1min&apikey=${Y40XKL904QT19YSB}`;
+  const url = `https://www.alphavantage.co/query?function=TIME_SERIES_INTRADAY&symbol=${symbol}&interval=1min&apikey=${ALPHA_VANTAGE_API_KEY}`;
 
   return new Promise((resolve, reject) => {
     https.get(url, (resp) => {
