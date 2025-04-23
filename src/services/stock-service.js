@@ -9,7 +9,7 @@ const CONFIG = {
   API_URL: 'https://9lp8pvu206.execute-api.us-east-1.amazonaws.com/prod',
   
   // Feature flag to force local mode even in production
-  FORCE_LOCAL_MODE: false
+  FORCE_LOCAL_MODE: true
 };
 
 // Environment detection
@@ -325,28 +325,16 @@ const searchStockSymbolsAWS = async (keyword) => {
  * Fetch stock data - automatically uses local or AWS implementation
  */
 export const fetchStockData = async (symbol, range) => {
-  // Use local implementation if in development mode or forced local mode
-  if (isLocalDevelopment()) {
-    console.log('Using LOCAL stock data mode');
-    return fetchStockDataLocal(symbol, range);
-  }
-  
-  // Otherwise use AWS implementation
-  console.log('Using AWS stock data mode');
-  return fetchStockDataAWS(symbol, range);
+  // Always use local implementation since AWS resources were deleted
+  console.log('Using LOCAL stock data mode');
+  return fetchStockDataLocal(symbol, range);
 };
 
 /**
  * Search stock symbols - automatically uses local or AWS implementation
  */
 export const searchStockSymbols = async (keyword) => {
-  // Use local implementation if in development mode or forced local mode
-  if (isLocalDevelopment()) {
-    console.log('Using LOCAL stock search mode');
-    return searchStockSymbolsLocal(keyword);
-  }
-  
-  // Otherwise use AWS implementation
-  console.log('Using AWS stock search mode');
-  return searchStockSymbolsAWS(keyword);
+  // Always use local implementation since AWS resources were deleted
+  console.log('Using LOCAL stock search mode');
+  return searchStockSymbolsLocal(keyword);
 }; 
