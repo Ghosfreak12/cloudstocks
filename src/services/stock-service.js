@@ -1,23 +1,16 @@
 /**
  * Stock Data Service
- * Works both locally (with mock data) and with AWS API Gateway
+ * Works with Finnhub API for real stock data
  */
 
 // Configuration - update these values
 const CONFIG = {
-  // AWS API Gateway URL (if using AWS)
-  API_URL: 'https://9lp8pvu206.execute-api.us-east-1.amazonaws.com/prod',
+  // Finnhub API key and URL
+  FINNHUB_API_KEY: 'd018h2pr01qile5u3ur0d018h2pr01qile5u3urg',
+  FINNHUB_API_URL: 'https://finnhub.io/api/v1',
   
-  // Feature flag to force local mode even in production
-  FORCE_LOCAL_MODE: true
-};
-
-// Environment detection
-const isLocalDevelopment = () => {
-  // Only use local mode if explicitly forced or in development
-  return CONFIG.FORCE_LOCAL_MODE || 
-         process.env.NODE_ENV === 'development';
-  // Removed the localhost check to prevent unexpected fallback
+  // Feature flags
+  USE_MOCK_DATA: false
 };
 
 // =====================================================
@@ -265,13 +258,58 @@ const searchStockSymbolsLocal = async (keyword) => {
 };
 
 // =====================================================
-// AWS IMPLEMENTATION
+// FINNHUB API IMPLEMENTATION
 // =====================================================
 
 /**
- * AWS implementation of fetchStockData
+ * Convert a range parameter to Finnhub parameters (resolution and from/to dates)
  */
-const fetchStockDataAWS = async (symbol, range) => {
+const getRangeParameters = (range) => {
+  const now = Math.floor(Date.now() / 1000);
+  let resolution = 'D';
+  let from = now;
+  
+  switch (range.toUpperCase()) {
+    case '1D':
+      resolution = '5';
+      from = now - (24 * 60 * 60); // 1 day back
+      break;
+    case '5D':
+      resolution = '15';
+      from = now - (5 * 24 * 60 * 60); // 5 days back
+      break;
+    case '1M':
+      resolution = 'D';
+      from = now - (30 * 24 * 60 * 60); // 30 days back
+      break;
+    case '1Y':
+      resolution = 'W';
+      from = now - (365 * 24 * 60 * 60); // 1 year back
+      break;
+    case '5Y':
+      resolution = 'M';
+      from = now - (5 * 365 * 24 * 60 * 60); // 5 years back
+      break;
+    case '10Y':
+      resolution = 'M';
+      from = now - (10 * 365 * 24 * 60 * 60); // 10 years back
+      break;
+    case 'MAX':
+      resolution = 'M';
+      from = now - (20 * 365 * 24 * 60 * 60); // 20 years back (max)
+      break;
+    default:
+      resolution = 'D';
+      from = now - (30 * 24 * 60 * 60); // Default to 1 month
+  }
+  
+  return { resolution, from, to: now };
+};
+
+/**
+ * Fetch stock data from Finnhub API
+ */
+const fetchStockDataFinnhub = async (symbol, range) => {
   try {
     // Ensure we have a valid, non-empty symbol
     if (!symbol) {
@@ -283,60 +321,71 @@ const fetchStockDataAWS = async (symbol, range) => {
 
     // Clean and encode parameters properly
     const encodedSymbol = encodeURIComponent(symbol.trim().toUpperCase());
-    const encodedRange = encodeURIComponent(range.toLowerCase());
     
-    console.log(`Making API request to: ${CONFIG.API_URL}/stock-data?symbol=${encodedSymbol}&range=${encodedRange}`);
+    console.log(`Fetching Finnhub data for ${encodedSymbol} with range ${range}`);
     
-    const response = await fetch(
-      `${CONFIG.API_URL}/stock-data?symbol=${encodedSymbol}&range=${encodedRange}`
+    // Get range parameters
+    const { resolution, from, to } = getRangeParameters(range);
+    
+    // Fetch quote data first (current price, change, etc.)
+    const quoteResponse = await fetch(
+      `${CONFIG.FINNHUB_API_URL}/quote?symbol=${encodedSymbol}&token=${CONFIG.FINNHUB_API_KEY}`
     );
     
-    if (!response.ok) {
-      const errorText = await response.text();
-      let errorMessage = 'Failed to fetch stock data';
-      
-      try {
-        const errorData = JSON.parse(errorText);
-        errorMessage = errorData.error || errorMessage;
-      } catch (e) {
-        // If parsing fails, use the raw error text
-        errorMessage = errorText || errorMessage;
-      }
-      
+    if (!quoteResponse.ok) {
+      throw new Error(`Failed to fetch quote data: ${quoteResponse.statusText}`);
+    }
+    
+    const quoteData = await quoteResponse.json();
+    
+    // Check if we got a valid response
+    if (quoteData.error) {
       return { 
         noData: true, 
-        error: errorMessage
+        error: quoteData.error 
       };
     }
     
-    const responseData = await response.json();
-    console.log('API response:', responseData);
+    // Fetch company profile for name
+    const profileResponse = await fetch(
+      `${CONFIG.FINNHUB_API_URL}/stock/profile2?symbol=${encodedSymbol}&token=${CONFIG.FINNHUB_API_KEY}`
+    );
     
-    // Handle API Gateway Lambda proxy response format
-    if (responseData.body && (responseData.statusCode || responseData.headers)) {
-      try {
-        // If body is a JSON string, parse it
-        return typeof responseData.body === 'string' 
-          ? JSON.parse(responseData.body) 
-          : responseData.body;
-      } catch (err) {
-        console.error('Error parsing Lambda response body:', err);
-        return responseData.body;
-      }
+    let companyName = encodedSymbol;
+    if (profileResponse.ok) {
+      const profileData = await profileResponse.json();
+      companyName = profileData.name || encodedSymbol;
     }
     
-    // If the response contains an error directly
-    if (responseData.error) {
-      return {
-        noData: true,
-        error: responseData.error
+    // Fetch historical data
+    const historyResponse = await fetch(
+      `${CONFIG.FINNHUB_API_URL}/stock/candle?symbol=${encodedSymbol}&resolution=${resolution}&from=${from}&to=${to}&token=${CONFIG.FINNHUB_API_KEY}`
+    );
+    
+    if (!historyResponse.ok) {
+      throw new Error(`Failed to fetch historical data: ${historyResponse.statusText}`);
+    }
+    
+    const historyData = await historyResponse.json();
+    
+    // Check if we got valid history
+    if (historyData.s === 'no_data') {
+      return { 
+        noData: true, 
+        error: 'No historical data available for this symbol and timeframe' 
       };
     }
     
-    // If it's already the expected format, return as is
-    return responseData;
+    // Format the response to match our app's expected format
+    return {
+      ...historyData,
+      currentPrice: quoteData.c,
+      change: quoteData.d,
+      changePercent: quoteData.dp,
+      companyName
+    };
   } catch (error) {
-    console.error('Error fetching stock data from AWS:', error);
+    console.error('Error fetching stock data from Finnhub:', error);
     return { 
       noData: true, 
       error: 'Failed to fetch stock data. Please try again.' 
@@ -345,19 +394,19 @@ const fetchStockDataAWS = async (symbol, range) => {
 };
 
 /**
- * AWS implementation of searchStockSymbols
+ * Search stock symbols using Finnhub API
  */
-const searchStockSymbolsAWS = async (keyword) => {
+const searchStockSymbolsFinnhub = async (keyword) => {
   if (!keyword || keyword.length < 2) return [];
   
   try {
     // Clean and encode the keyword properly
     const encodedKeyword = encodeURIComponent(keyword.trim().toLowerCase());
     
-    console.log(`Making API search request with query: ${encodedKeyword}`);
+    console.log(`Searching Finnhub stocks with query: ${encodedKeyword}`);
     
     const response = await fetch(
-      `${CONFIG.API_URL}/stock-data/search-stocks?query=${encodedKeyword}`
+      `${CONFIG.FINNHUB_API_URL}/search?q=${encodedKeyword}&token=${CONFIG.FINNHUB_API_KEY}`
     );
     
     if (!response.ok) {
@@ -365,32 +414,21 @@ const searchStockSymbolsAWS = async (keyword) => {
       return [];
     }
     
-    const responseData = await response.json();
-    console.log('Search API response:', responseData);
+    const data = await response.json();
     
-    // Handle API Gateway Lambda proxy response format
-    if (responseData.body && (responseData.statusCode || responseData.headers)) {
-      try {
-        // If body is a JSON string, parse it
-        return typeof responseData.body === 'string' 
-          ? JSON.parse(responseData.body) 
-          : responseData.body;
-      } catch (err) {
-        console.error('Error parsing Lambda response body:', err);
-        return [];
-      }
+    // Format the response to match our app's expected format
+    if (data.result && Array.isArray(data.result)) {
+      return data.result
+        .filter(item => item.type === 'Common Stock' && !item.symbol.includes('.'))
+        .map(item => ({
+          symbol: item.symbol,
+          name: item.description
+        }));
     }
     
-    // If the response is already an array, return as is
-    if (Array.isArray(responseData)) {
-      return responseData;
-    }
-    
-    // If we got here, something unexpected happened
-    console.error('Unexpected search response format:', responseData);
     return [];
   } catch (error) {
-    console.error('Error searching stocks from AWS:', error);
+    console.error('Error searching stocks from Finnhub:', error);
     return [];
   }
 };
@@ -400,31 +438,31 @@ const searchStockSymbolsAWS = async (keyword) => {
 // =====================================================
 
 /**
- * Fetch stock data - without fallback to local mode
+ * Fetch stock data
  */
 export const fetchStockData = async (symbol, range) => {
-  // Use local implementation if in development mode or forced local mode
-  if (isLocalDevelopment()) {
-    console.log('Using LOCAL stock data mode');
+  // Use mock data if configured to do so
+  if (CONFIG.USE_MOCK_DATA) {
+    console.log('Using MOCK stock data mode');
     return fetchStockDataLocal(symbol, range);
   }
   
-  // Otherwise use AWS implementation with no fallback
-  console.log('Using AWS stock data mode');
-  return fetchStockDataAWS(symbol, range);
+  // Otherwise use Finnhub implementation
+  console.log('Using Finnhub stock data API');
+  return fetchStockDataFinnhub(symbol, range);
 };
 
 /**
- * Search stock symbols - without fallback to local mode
+ * Search stock symbols
  */
 export const searchStockSymbols = async (keyword) => {
-  // Use local implementation if in development mode or forced local mode
-  if (isLocalDevelopment()) {
-    console.log('Using LOCAL stock search mode');
+  // Use mock data if configured to do so
+  if (CONFIG.USE_MOCK_DATA) {
+    console.log('Using MOCK stock search mode');
     return searchStockSymbolsLocal(keyword);
   }
   
-  // Otherwise use AWS implementation with no fallback
-  console.log('Using AWS stock search mode');
-  return searchStockSymbolsAWS(keyword);
+  // Otherwise use Finnhub implementation
+  console.log('Using Finnhub stock search API');
+  return searchStockSymbolsFinnhub(keyword);
 }; 
