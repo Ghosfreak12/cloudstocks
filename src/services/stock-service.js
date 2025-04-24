@@ -6,10 +6,10 @@
 // Configuration - update these values
 const CONFIG = {
   // AWS API Gateway URL (if using AWS)
-  API_URL: 'https://9lp8pvu206.execute-api.us-east-1.amazonaws.com/prod',
+  API_URL: 'https://kspydmw3ei.execute-api.us-east-1.amazonaws.com/prod',
   
   // Feature flag to force local mode even in production
-  FORCE_LOCAL_MODE: true
+  FORCE_LOCAL_MODE: false
 };
 
 // Environment detection
@@ -322,19 +322,57 @@ const searchStockSymbolsAWS = async (keyword) => {
 // =====================================================
 
 /**
- * Fetch stock data - automatically uses local or AWS implementation
+ * Fetch stock data - with fallback to local mode if AWS fails
  */
 export const fetchStockData = async (symbol, range) => {
-  // Always use local implementation since AWS resources were deleted
-  console.log('Using LOCAL stock data mode');
-  return fetchStockDataLocal(symbol, range);
+  // Use local implementation if in development mode or forced local mode
+  if (isLocalDevelopment()) {
+    console.log('Using LOCAL stock data mode');
+    return fetchStockDataLocal(symbol, range);
+  }
+  
+  // Otherwise try AWS implementation with fallback to local
+  try {
+    console.log('Using AWS stock data mode');
+    const awsResult = await fetchStockDataAWS(symbol, range);
+    
+    // If AWS returns an error, fallback to local mode
+    if (awsResult.error) {
+      console.log('AWS returned error, falling back to local mode');
+      return fetchStockDataLocal(symbol, range);
+    }
+    
+    return awsResult;
+  } catch (error) {
+    console.error('Error with AWS, falling back to local mode:', error);
+    return fetchStockDataLocal(symbol, range);
+  }
 };
 
 /**
- * Search stock symbols - automatically uses local or AWS implementation
+ * Search stock symbols - with fallback to local mode if AWS fails
  */
 export const searchStockSymbols = async (keyword) => {
-  // Always use local implementation since AWS resources were deleted
-  console.log('Using LOCAL stock search mode');
-  return searchStockSymbolsLocal(keyword);
+  // Use local implementation if in development mode or forced local mode
+  if (isLocalDevelopment()) {
+    console.log('Using LOCAL stock search mode');
+    return searchStockSymbolsLocal(keyword);
+  }
+  
+  // Otherwise try AWS implementation with fallback to local
+  try {
+    console.log('Using AWS stock search mode');
+    const awsResult = await searchStockSymbolsAWS(keyword);
+    
+    // If AWS returns empty or fails, fallback to local mode
+    if (!awsResult || awsResult.length === 0 || awsResult.error) {
+      console.log('AWS returned no results, falling back to local mode');
+      return searchStockSymbolsLocal(keyword);
+    }
+    
+    return awsResult;
+  } catch (error) {
+    console.error('Error with AWS, falling back to local mode:', error);
+    return searchStockSymbolsLocal(keyword);
+  }
 }; 
