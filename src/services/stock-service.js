@@ -284,7 +284,23 @@ const fetchStockDataAWS = async (symbol, range) => {
       };
     }
     
-    return await response.json();
+    const responseData = await response.json();
+    
+    // Handle API Gateway Lambda proxy response format
+    if (responseData.body && (responseData.statusCode || responseData.headers)) {
+      try {
+        // If body is a JSON string, parse it
+        return typeof responseData.body === 'string' 
+          ? JSON.parse(responseData.body) 
+          : responseData.body;
+      } catch (err) {
+        console.error('Error parsing Lambda response body:', err);
+        return responseData.body;
+      }
+    }
+    
+    // If it's already the expected format, return as is
+    return responseData;
   } catch (error) {
     console.error('Error fetching stock data from AWS:', error);
     return { 
@@ -302,7 +318,7 @@ const searchStockSymbolsAWS = async (keyword) => {
   
   try {
     const response = await fetch(
-      `${CONFIG.API_URL}/stock-data/search-stocks?keyword=${encodeURIComponent(keyword)}`
+      `${CONFIG.API_URL}/stock-data/search-stocks?query=${encodeURIComponent(keyword)}`
     );
     
     if (!response.ok) {
@@ -310,7 +326,23 @@ const searchStockSymbolsAWS = async (keyword) => {
       return [];
     }
     
-    return await response.json();
+    const responseData = await response.json();
+    
+    // Handle API Gateway Lambda proxy response format
+    if (responseData.body && (responseData.statusCode || responseData.headers)) {
+      try {
+        // If body is a JSON string, parse it
+        return typeof responseData.body === 'string' 
+          ? JSON.parse(responseData.body) 
+          : responseData.body;
+      } catch (err) {
+        console.error('Error parsing Lambda response body:', err);
+        return [];
+      }
+    }
+    
+    // If it's already the expected format, return as is
+    return responseData;
   } catch (error) {
     console.error('Error searching stocks from AWS:', error);
     return [];
