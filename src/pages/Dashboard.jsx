@@ -65,42 +65,48 @@ export default function Dashboard() {
 
   // Function to handle symbol selection
   const handleSelectSymbol = (newSymbol) => {
-    if (newSymbol && newSymbol !== symbol) {
-      setSymbol(newSymbol)
+    if (newSymbol && newSymbol.trim() !== '') {
+      setSymbol(newSymbol.trim().toUpperCase())
       setError(null)
     }
   }
 
   // Function to handle range selection
   const handleSelectRange = (newRange) => {
-    if (newRange && newRange !== range) {
+    if (newRange && RANGES.includes(newRange)) {
       setRange(newRange)
       setError(null)
     }
   }
 
+  // Fetch stock data whenever symbol or range changes
   useEffect(() => {
     // Ensure symbol is not empty or just whitespace
-    const trimmedSymbol = symbol?.trim();
+    const trimmedSymbol = symbol?.trim()
     if (!trimmedSymbol) {
-      setError('Symbol parameter is required');
-      setLoading(false);
-      return;
+      setError('Symbol parameter is required')
+      setLoading(false)
+      return
     }
 
     let isMounted = true
     setLoading(true)
     setError(null)
     
+    console.log(`Starting data fetch for ${trimmedSymbol} with range ${range}`)
+    
     const fetchData = async () => {
       try {
         console.log(`Fetching data for ${trimmedSymbol} with range ${range}`)
-        const data = await fetchStockData(trimmedSymbol.toUpperCase(), range)
+        const data = await fetchStockData(trimmedSymbol, range)
         
         // Don't update state if component unmounted
         if (!isMounted) return
         
+        console.log('Received data:', data)
+        
         if (data.noData || data.error) {
+          console.error('Error in data response:', data.error)
           setError(data.error || 'No data available for this symbol and range.')
           setStockData([])
           setStockInfo(null)
@@ -128,12 +134,15 @@ export default function Dashboard() {
           })
         }
 
+        console.log(`Formatted ${formatted.length} data points`)
         setStockData(formatted)
+        
+        // Set stock info with proper fallbacks for all values
         setStockInfo({
           price: data.currentPrice || 0,
           change: data.change || 0,
           changePercent: data.changePercent || 0,
-          companyName: data.companyName || trimmedSymbol
+          name: data.companyName || trimmedSymbol
         })
       } catch (err) {
         if (isMounted) {

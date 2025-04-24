@@ -272,19 +272,44 @@ const searchStockSymbolsLocal = async (keyword) => {
  */
 const fetchStockDataAWS = async (symbol, range) => {
   try {
+    // Ensure we have a valid, non-empty symbol
+    if (!symbol) {
+      return { 
+        noData: true, 
+        error: 'Symbol parameter is required' 
+      };
+    }
+
+    // Clean and encode parameters properly
+    const encodedSymbol = encodeURIComponent(symbol.trim().toUpperCase());
+    const encodedRange = encodeURIComponent(range.toLowerCase());
+    
+    console.log(`Making API request to: ${CONFIG.API_URL}/stock-data?symbol=${encodedSymbol}&range=${encodedRange}`);
+    
     const response = await fetch(
-      `${CONFIG.API_URL}/stock-data?symbol=${encodeURIComponent(symbol)}&range=${encodeURIComponent(range.toLowerCase())}`
+      `${CONFIG.API_URL}/stock-data?symbol=${encodedSymbol}&range=${encodedRange}`
     );
     
     if (!response.ok) {
-      const errorData = await response.json();
+      const errorText = await response.text();
+      let errorMessage = 'Failed to fetch stock data';
+      
+      try {
+        const errorData = JSON.parse(errorText);
+        errorMessage = errorData.error || errorMessage;
+      } catch (e) {
+        // If parsing fails, use the raw error text
+        errorMessage = errorText || errorMessage;
+      }
+      
       return { 
         noData: true, 
-        error: errorData.error || 'Failed to fetch stock data' 
+        error: errorMessage
       };
     }
     
     const responseData = await response.json();
+    console.log('API response:', responseData);
     
     // Handle API Gateway Lambda proxy response format
     if (responseData.body && (responseData.statusCode || responseData.headers)) {
@@ -297,6 +322,14 @@ const fetchStockDataAWS = async (symbol, range) => {
         console.error('Error parsing Lambda response body:', err);
         return responseData.body;
       }
+    }
+    
+    // If the response contains an error directly
+    if (responseData.error) {
+      return {
+        noData: true,
+        error: responseData.error
+      };
     }
     
     // If it's already the expected format, return as is
@@ -317,8 +350,13 @@ const searchStockSymbolsAWS = async (keyword) => {
   if (!keyword || keyword.length < 2) return [];
   
   try {
+    // Clean and encode the keyword properly
+    const encodedKeyword = encodeURIComponent(keyword.trim().toLowerCase());
+    
+    console.log(`Making API search request with query: ${encodedKeyword}`);
+    
     const response = await fetch(
-      `${CONFIG.API_URL}/stock-data/search-stocks?query=${encodeURIComponent(keyword)}`
+      `${CONFIG.API_URL}/stock-data/search-stocks?query=${encodedKeyword}`
     );
     
     if (!response.ok) {
@@ -327,6 +365,7 @@ const searchStockSymbolsAWS = async (keyword) => {
     }
     
     const responseData = await response.json();
+    console.log('Search API response:', responseData);
     
     // Handle API Gateway Lambda proxy response format
     if (responseData.body && (responseData.statusCode || responseData.headers)) {
@@ -341,8 +380,14 @@ const searchStockSymbolsAWS = async (keyword) => {
       }
     }
     
-    // If it's already the expected format, return as is
-    return responseData;
+    // If the response is already an array, return as is
+    if (Array.isArray(responseData)) {
+      return responseData;
+    }
+    
+    // If we got here, something unexpected happened
+    console.error('Unexpected search response format:', responseData);
+    return [];
   } catch (error) {
     console.error('Error searching stocks from AWS:', error);
     return [];
