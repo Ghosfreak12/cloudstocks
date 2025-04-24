@@ -354,7 +354,7 @@ const searchStockSymbolsAWS = async (keyword) => {
 // =====================================================
 
 /**
- * Fetch stock data - with fallback to local mode if AWS fails
+ * Fetch stock data - without fallback to local mode
  */
 export const fetchStockData = async (symbol, range) => {
   // Use local implementation if in development mode or forced local mode
@@ -363,26 +363,13 @@ export const fetchStockData = async (symbol, range) => {
     return fetchStockDataLocal(symbol, range);
   }
   
-  // Otherwise try AWS implementation with fallback to local
-  try {
-    console.log('Using AWS stock data mode');
-    const awsResult = await fetchStockDataAWS(symbol, range);
-    
-    // If AWS returns an error, fallback to local mode
-    if (awsResult.error) {
-      console.log('AWS returned error, falling back to local mode');
-      return fetchStockDataLocal(symbol, range);
-    }
-    
-    return awsResult;
-  } catch (error) {
-    console.error('Error with AWS, falling back to local mode:', error);
-    return fetchStockDataLocal(symbol, range);
-  }
+  // Otherwise use AWS implementation with no fallback
+  console.log('Using AWS stock data mode');
+  return fetchStockDataAWS(symbol, range);
 };
 
 /**
- * Search stock symbols - with fallback to local mode if AWS fails
+ * Search stock symbols - without fallback to local mode
  */
 export const searchStockSymbols = async (keyword) => {
   // Use local implementation if in development mode or forced local mode
@@ -391,20 +378,7 @@ export const searchStockSymbols = async (keyword) => {
     return searchStockSymbolsLocal(keyword);
   }
   
-  // Otherwise try AWS implementation with fallback to local
-  try {
-    console.log('Using AWS stock search mode');
-    const awsResult = await searchStockSymbolsAWS(keyword);
-    
-    // If AWS returns empty or fails, fallback to local mode
-    if (!awsResult || awsResult.length === 0 || awsResult.error) {
-      console.log('AWS returned no results, falling back to local mode');
-      return searchStockSymbolsLocal(keyword);
-    }
-    
-    return awsResult;
-  } catch (error) {
-    console.error('Error with AWS, falling back to local mode:', error);
-    return searchStockSymbolsLocal(keyword);
-  }
+  // Otherwise use AWS implementation with no fallback
+  console.log('Using AWS stock search mode');
+  return searchStockSymbolsAWS(keyword);
 }; 
