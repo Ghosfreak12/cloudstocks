@@ -6,7 +6,7 @@
 // Configuration - update these values
 const CONFIG = {
   // AWS API Gateway URL (if using AWS)
-  API_URL: 'https://kspydmw3ei.execute-api.us-east-1.amazonaws.com/prod',
+  API_URL: 'https://9lp8pvu206.execute-api.us-east-1.amazonaws.com/prod',
   
   // Feature flag to force local mode even in production
   FORCE_LOCAL_MODE: false
@@ -302,7 +302,7 @@ const searchStockSymbolsAWS = async (keyword) => {
   
   try {
     const response = await fetch(
-      `${CONFIG.API_URL}/search-stocks?keyword=${encodeURIComponent(keyword)}`
+      `${CONFIG.API_URL}/stock-data/search-stocks?keyword=${encodeURIComponent(keyword)}`
     );
     
     if (!response.ok) {
