@@ -126,7 +126,7 @@ function convertRangeToParams(range) {
       return { 
         function: 'TIME_SERIES_INTRADAY', 
         interval: '60min',
-        outputsize: 'compact' 
+        outputsize: 'full'  // Use full output size to get more data points
       };
     case '1M':
       return { 
@@ -183,7 +183,22 @@ function transformAlphaVantageData(data, symbol, range) {
   }
   
   // Get dates in order (most recent first)
-  const dates = Object.keys(timeSeries).sort((a, b) => new Date(b) - new Date(a));
+  let dates = Object.keys(timeSeries).sort((a, b) => new Date(b) - new Date(a));
+  
+  // For 5D range, filter to get only the last 5 days of data
+  if (range.toUpperCase() === '5D' && dates.length > 0) {
+    const now = new Date();
+    const fiveDaysAgo = new Date(now);
+    fiveDaysAgo.setDate(now.getDate() - 5);
+    
+    // Filter dates to only include those within the last 5 days
+    dates = dates.filter(date => {
+      const dateObj = new Date(date);
+      return dateObj >= fiveDaysAgo;
+    });
+    
+    console.log(`Filtered data for 5D range: ${dates.length} data points`);
+  }
   
   if (dates.length === 0) {
     return {
