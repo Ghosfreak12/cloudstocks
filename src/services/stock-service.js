@@ -9,7 +9,7 @@ const CONFIG = {
   API_URL: 'https://9lp8pvu206.execute-api.us-east-1.amazonaws.com/prod',
   
   // Feature flag to force local mode even in production
-  FORCE_LOCAL_MODE: false
+  FORCE_LOCAL_MODE: true
 };
 
 // Environment detection
