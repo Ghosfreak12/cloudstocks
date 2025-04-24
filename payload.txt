@@ -1,0 +1,6 @@
+{
+  "queryStringParameters": {
+    "symbol": "AAPL",
+    "range": "1m"
+  }
+}

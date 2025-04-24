@@ -1,0 +1,9 @@
+{
+  "name": "get-stock-data",
+  "version": "1.0.0",
+  "description": "Lambda function to fetch stock data",
+  "main": "index.js",
+  "dependencies": {
+    "aws-sdk": "^2.1037.0"
+  }
+} 
