@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { fetchStockData, searchStockSymbols } from '../services/stock-service'
+import { fetchStockData, searchStockSymbols } from '../services/simplified-service'
 import SymbolSearch from '../components/SymbolSearch'
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, 

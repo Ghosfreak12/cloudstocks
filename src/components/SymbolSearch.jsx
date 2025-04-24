@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { searchStockSymbols } from '../services/stock-service'
+import { searchStockSymbols } from '../services/simplified-service'
 import debounce from 'lodash.debounce'
 
 export default function SymbolSearch({ onSelect }) {
