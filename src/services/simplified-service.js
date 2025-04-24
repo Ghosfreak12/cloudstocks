@@ -1,22 +1,22 @@
 /**
  * Simplified Stock Service
- * Uses mock data implementation only
+ * Uses Alpha Vantage for real market data
  */
 
-import { fetchStockData as fetchMockData, searchStockSymbols as searchMockSymbols } from './mock-stock-service';
+import { fetchStockData as fetchAlphaVantageData, searchStockSymbols as searchAlphaVantageSymbols } from './alpha-vantage-service';
 
 /**
- * Simplified fetchStockData - uses only mock implementation
+ * Simplified fetchStockData - uses Alpha Vantage API
  */
 export const fetchStockData = async (symbol, range) => {
-  console.log('Using simplified mock-only stock data service');
-  return fetchMockData(symbol, range);
+  console.log('Using Alpha Vantage stock data service');
+  return fetchAlphaVantageData(symbol, range);
 };
 
 /**
- * Simplified searchStockSymbols - uses only mock implementation
+ * Simplified searchStockSymbols - uses Alpha Vantage API
  */
 export const searchStockSymbols = async (keyword) => {
-  console.log('Using simplified mock-only stock search service');
-  return searchMockSymbols(keyword);
+  console.log('Using Alpha Vantage stock search service');
+  return searchAlphaVantageSymbols(keyword);
 }; 
