@@ -80,8 +80,13 @@ export default function Dashboard() {
   }
 
   useEffect(() => {
-    // Don't proceed if symbol is empty
-    if (!symbol.trim()) return
+    // Ensure symbol is not empty or just whitespace
+    const trimmedSymbol = symbol?.trim();
+    if (!trimmedSymbol) {
+      setError('Symbol parameter is required');
+      setLoading(false);
+      return;
+    }
 
     let isMounted = true
     setLoading(true)
@@ -89,8 +94,8 @@ export default function Dashboard() {
     
     const fetchData = async () => {
       try {
-        console.log(`Fetching data for ${symbol} with range ${range}`)
-        const data = await fetchStockData(symbol.toUpperCase(), range)
+        console.log(`Fetching data for ${trimmedSymbol} with range ${range}`)
+        const data = await fetchStockData(trimmedSymbol.toUpperCase(), range)
         
         // Don't update state if component unmounted
         if (!isMounted) return
@@ -128,7 +133,7 @@ export default function Dashboard() {
           price: data.currentPrice || 0,
           change: data.change || 0,
           changePercent: data.changePercent || 0,
-          companyName: data.companyName || symbol
+          companyName: data.companyName || trimmedSymbol
         })
       } catch (err) {
         if (isMounted) {
