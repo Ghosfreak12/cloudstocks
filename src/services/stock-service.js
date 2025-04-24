@@ -272,7 +272,9 @@ const getRangeParameters = (range) => {
   switch (range.toUpperCase()) {
     case '1D':
       resolution = '5';
-      from = now - (24 * 60 * 60); // 1 day back
+      // For 1D, go back 2 days to ensure we get enough data points
+      // (Finnhub might not have very recent data during market closed hours)
+      from = now - (2 * 24 * 60 * 60); 
       break;
     case '5D':
       resolution = '15';
@@ -322,10 +324,10 @@ const fetchStockDataFinnhub = async (symbol, range) => {
     // Clean and encode parameters properly
     const encodedSymbol = encodeURIComponent(symbol.trim().toUpperCase());
     
-    console.log(`Fetching Finnhub data for ${encodedSymbol} with range ${range}`);
-    
     // Get range parameters
     const { resolution, from, to } = getRangeParameters(range);
+    
+    console.log(`Fetching Finnhub data for ${encodedSymbol} with range ${range} (resolution: ${resolution}, from: ${from}, to: ${to})`);
     
     // Fetch quote data first (current price, change, etc.)
     const quoteResponse = await fetch(
@@ -358,27 +360,62 @@ const fetchStockDataFinnhub = async (symbol, range) => {
     }
     
     // Fetch historical data
-    const historyResponse = await fetch(
-      `${CONFIG.FINNHUB_API_URL}/stock/candle?symbol=${encodedSymbol}&resolution=${resolution}&from=${from}&to=${to}&token=${CONFIG.FINNHUB_API_KEY}`
-    );
+    const historyUrl = `${CONFIG.FINNHUB_API_URL}/stock/candle?symbol=${encodedSymbol}&resolution=${resolution}&from=${from}&to=${to}&token=${CONFIG.FINNHUB_API_KEY}`;
+    console.log(`Fetching historical data from: ${historyUrl}`);
+    
+    const historyResponse = await fetch(historyUrl);
     
     if (!historyResponse.ok) {
       throw new Error(`Failed to fetch historical data: ${historyResponse.statusText}`);
     }
     
     const historyData = await historyResponse.json();
+    console.log(`History data response status: ${historyData.s}, data points: ${historyData.t ? historyData.t.length : 0}`);
     
     // Check if we got valid history
     if (historyData.s === 'no_data') {
+      console.error('No historical data returned for query:', { symbol, range, resolution, from, to });
       return { 
         noData: true, 
         error: 'No historical data available for this symbol and timeframe' 
       };
     }
     
+    // Ensure the data has enough points for charting
+    if (!historyData.t || historyData.t.length < 2) {
+      console.error('Not enough data points for charting:', { symbol, range, dataPoints: historyData.t ? historyData.t.length : 0 });
+      return {
+        noData: true,
+        error: 'Not enough data points available for this timeframe'
+      };
+    }
+
+    // For 1D specifically, ensure we have minute-level data
+    if (range.toUpperCase() === '1D' && historyData.t.length < 10) {
+      console.log('Insufficient 1D data points, falling back to 5D data with higher resolution');
+      // Fall back to 5D with 5-minute resolution
+      const fallbackFrom = from - (3 * 24 * 60 * 60); // Go back 5 days total
+      
+      const fallbackHistoryUrl = `${CONFIG.FINNHUB_API_URL}/stock/candle?symbol=${encodedSymbol}&resolution=5&from=${fallbackFrom}&to=${to}&token=${CONFIG.FINNHUB_API_KEY}`;
+      const fallbackResponse = await fetch(fallbackHistoryUrl);
+      
+      if (fallbackResponse.ok) {
+        const fallbackData = await fallbackResponse.json();
+        if (fallbackData.s === 'ok' && fallbackData.t && fallbackData.t.length >= 10) {
+          console.log(`Using fallback data with ${fallbackData.t.length} data points`);
+          historyData = fallbackData;
+        }
+      }
+    }
+    
     // Format the response to match our app's expected format
     return {
-      ...historyData,
+      t: historyData.t,
+      o: historyData.o,
+      h: historyData.h,
+      l: historyData.l,
+      c: historyData.c,
+      v: historyData.v,
       currentPrice: quoteData.c,
       change: quoteData.d,
       changePercent: quoteData.dp,
