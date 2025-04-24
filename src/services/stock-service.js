@@ -14,9 +14,10 @@ const CONFIG = {
 
 // Environment detection
 const isLocalDevelopment = () => {
+  // Only use local mode if explicitly forced or in development
   return CONFIG.FORCE_LOCAL_MODE || 
-         process.env.NODE_ENV === 'development' || 
-         window.location.hostname === 'localhost';
+         process.env.NODE_ENV === 'development';
+  // Removed the localhost check to prevent unexpected fallback
 };
 
 // =====================================================
