@@ -1,22 +1,23 @@
 /**
+ * CloudStocks: A Real-Time Stock Market Dashboard on AWS
+ * Author: Rishal Khatri
+ *
  * Simplified Stock Service
- * Uses Alpha Vantage for real market data
+ * Acts as a bridge to the actual stock service implementation
  */
 
-import { fetchStockData as fetchAlphaVantageData, searchStockSymbols as searchAlphaVantageSymbols } from './alpha-vantage-service';
+import { fetchStockData as fetchStockDataImpl, searchStockSymbols as searchStockSymbolsImpl } from './stock-service';
 
 /**
- * Simplified fetchStockData - uses Alpha Vantage API
+ * Simplified fetchStockData - delegates to implementation
  */
 export const fetchStockData = async (symbol, range) => {
-  console.log('Using Alpha Vantage stock data service');
-  return fetchAlphaVantageData(symbol, range);
+  return fetchStockDataImpl(symbol, range);
 };
 
 /**
- * Simplified searchStockSymbols - uses Alpha Vantage API
+ * Simplified searchStockSymbols - delegates to implementation
  */
 export const searchStockSymbols = async (keyword) => {
-  console.log('Using Alpha Vantage stock search service');
-  return searchAlphaVantageSymbols(keyword);
+  return searchStockSymbolsImpl(keyword);
 }; 

@@ -41,10 +41,30 @@ async function testGetStockData() {
   }
 }
 
+// Test getting a different stock
+async function testGetAnotherStock() {
+  try {
+    console.log('\n--- Testing Get Another Stock (MSFT) ---');
+    const response = await axios.get(`${API_BASE_URL}/stock-data?symbol=MSFT&range=1m`);
+    console.log('Status:', response.status);
+    console.log('Headers:', JSON.stringify(response.headers, null, 2));
+    console.log('Response Type:', typeof response.data);
+    console.log('Response Preview:', JSON.stringify(response.data).substring(0, 200) + '...');
+    return response.data;
+  } catch (error) {
+    console.error('Get MSFT Stock Error:', error.message);
+    if (error.response) {
+      console.error('Error Status:', error.response.status);
+      console.error('Error Data:', error.response.data);
+    }
+  }
+}
+
 // Run the tests
 async function runTests() {
   await testSearchStocks();
   await testGetStockData();
+  await testGetAnotherStock();
 }
 
 runTests();

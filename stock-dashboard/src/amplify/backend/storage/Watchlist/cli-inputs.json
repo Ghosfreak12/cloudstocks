@@ -1,0 +1,14 @@
+{
+  "resourceName": "Watchlist",
+  "tableName": "Watchlist",
+  "partitionKey": {
+    "fieldName": "stock-symbol",
+    "fieldType": "string"
+  },
+  "sortKey": {
+    "fieldName": "lastUpdated",
+    "fieldType": "string"
+  },
+  "gsi": [],
+  "triggerFunctions": []
+}

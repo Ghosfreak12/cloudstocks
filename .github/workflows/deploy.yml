@@ -32,4 +32,13 @@ jobs:
           aws lambda update-function-code \
             --function-name stockLambda \
             --zip-file fileb://function.zip
+
+      - name: Load sample data
+        run: node load-sample-data.js --force
+
+      - name: Deploy stable Lambda functions
+        run: ./deploy-stable.sh
+
+      - name: Verify setup
+        run: node verify-setup.js
             
