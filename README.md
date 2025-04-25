@@ -1,98 +1,75 @@
-# Stock Dashboard
+# Stock Market Dashboard
 
-A responsive, dark-mode stock dashboard application that works both locally and with AWS cloud services.
+A React-based dashboard for tracking and visualizing stock market data.
 
 ## Features
 
-- 📈 Real-time stock data visualization
-- 🔍 Stock symbol search
-- 📱 Responsive design with dark mode
-- ⏱️ Multiple time ranges (1D, 5D, 1M, 1Y, 5Y, 10Y, MAX)
-- 🌐 Works both locally and with AWS integration
+- Search for stocks by symbol or name
+- View real-time and historical stock data
+- Interactive charts for visualizing price trends
+- Configurable time ranges (daily, weekly, monthly, etc.)
 
-## Quick Start
+## Technologies Used
 
-### Running Locally
+- React.js
+- Recharts (for data visualization)
+- Alpha Vantage API (for stock market data)
+- Axios (for API requests)
+- CSS for styling
 
-```bash
-# Install dependencies
-npm install
+## Getting Started
 
-# Start development server (uses mock data)
-npm run dev
-```
+### Prerequisites
 
-The application will automatically use local mock data when running in development mode.
+- Node.js (v14 or newer)
+- npm or yarn
 
-### Running with AWS Integration
+### Installation
 
-The application can connect to your AWS backend when deployed to production.
+1. Clone the repository:
+   ```
+   git clone <repository-url>
+   ```
 
-1. Update the API Gateway URL in `src/services/stock-service.js`:
+2. Install dependencies:
+   ```
+   npm install
+   ```
+   or
+   ```
+   yarn install
+   ```
 
-```javascript
-const CONFIG = {
-  // AWS API Gateway URL (if using AWS)
-  API_URL: 'https://your-api-gateway-url.execute-api.us-east-1.amazonaws.com/prod',
-  
-  // Feature flag to force local mode even in production
-  FORCE_LOCAL_MODE: false
-};
-```
+3. Create a `.env` file in the root directory and add your Alpha Vantage API key:
+   ```
+   REACT_APP_ALPHA_VANTAGE_API_KEY=your_api_key_here
+   ```
 
-2. Build and deploy to your preferred hosting (S3, Netlify, Vercel, etc.):
+4. Start the development server:
+   ```
+   npm start
+   ```
+   or
+   ```
+   yarn start
+   ```
 
-```bash
-npm run build
-```
+5. Open [http://localhost:3000](http://localhost:3000) to view the app in your browser.
 
-## Implementation Details
+## Using the Dashboard
 
-### Automatic Environment Detection
+1. Use the search bar to find a stock by symbol or company name
+2. Select a stock from the search results to view its chart
+3. Use the time range selector to change the data timeframe (daily, weekly, monthly, etc.)
 
-The application automatically detects the environment:
+## Obtaining an API Key
 
-- In **development mode** (localhost): Uses mock data
-- In **production mode**: Uses AWS API
+To use this application, you'll need an Alpha Vantage API key:
 
-You can force local mode in production by setting `FORCE_LOCAL_MODE: true` in the config.
-
-### Project Structure
-
-- `src/services/stock-service.js` - Unified service that works locally and with AWS
-- `src/pages/Dashboard.jsx` - Main dashboard component
-- `src/components/SymbolSearch.jsx` - Search component for stocks
-
-## AWS Setup (Optional)
-
-If you want to use the AWS backend:
-
-1. Create DynamoDB table for stock data
-2. Create S3 bucket for historical data
-3. Create Lambda functions for data access
-4. Create API Gateway endpoints
-5. Update the API URL in the config
-
-Detailed AWS setup instructions can be found in `aws-setup.md`
-
-## Customization
-
-### Local Mode in Production
-
-To force local mode even in production (useful for demos):
-
-```javascript
-// In src/services/stock-service.js
-const CONFIG = {
-  API_URL: '...',
-  FORCE_LOCAL_MODE: true // Set this to true
-};
-```
-
-### Adding More Stocks
-
-To add more mock stocks, edit the `MOCK_STOCKS` object in `src/services/stock-service.js`.
+1. Visit [Alpha Vantage](https://www.alphavantage.co/support/#api-key)
+2. Register for a free API key
+3. Add the key to your `.env` file as described above
 
 ## License
 
-MIT 
+This project is licensed under the MIT License. 

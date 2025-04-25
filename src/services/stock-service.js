@@ -1,17 +1,20 @@
 /**
  * Stock Data Service
- * Works with Finnhub API for real stock data
+ * Works with Alpha Vantage API for real stock data
  */
 
 // Configuration - update these values
 const CONFIG = {
-  // Finnhub API key and URL
-  FINNHUB_API_KEY: 'd018h2pr01qile5u3ur0d018h2pr01qile5u3urg',
-  FINNHUB_API_URL: 'https://finnhub.io/api/v1',
+  // Alpha Vantage API key and URL
+  ALPHA_VANTAGE_API_KEY: 'demo', // Replace with your Alpha Vantage API key
+  ALPHA_VANTAGE_API_URL: 'https://www.alphavantage.co/query',
   
   // Feature flags
-  USE_MOCK_DATA: false
+  USE_MOCK_DATA: false // Try API first, but we'll still fall back to mock data if needed
 };
+
+// Import functions from alpha-vantage-service.js
+import * as alphaVantageService from './alpha-vantage-service.js';
 
 // =====================================================
 // LOCAL IMPLEMENTATION WITH MOCK DATA
@@ -258,219 +261,6 @@ const searchStockSymbolsLocal = async (keyword) => {
 };
 
 // =====================================================
-// FINNHUB API IMPLEMENTATION
-// =====================================================
-
-/**
- * Convert a range parameter to Finnhub parameters (resolution and from/to dates)
- */
-const getRangeParameters = (range) => {
-  const now = Math.floor(Date.now() / 1000);
-  let resolution = 'D';
-  let from = now;
-  
-  switch (range.toUpperCase()) {
-    case '1D':
-      resolution = '5';
-      // For 1D, go back 2 days to ensure we get enough data points
-      // (Finnhub might not have very recent data during market closed hours)
-      from = now - (2 * 24 * 60 * 60); 
-      break;
-    case '5D':
-      resolution = '15';
-      from = now - (5 * 24 * 60 * 60); // 5 days back
-      break;
-    case '1M':
-      resolution = 'D';
-      from = now - (30 * 24 * 60 * 60); // 30 days back
-      break;
-    case '1Y':
-      resolution = 'W';
-      from = now - (365 * 24 * 60 * 60); // 1 year back
-      break;
-    case '5Y':
-      resolution = 'M';
-      from = now - (5 * 365 * 24 * 60 * 60); // 5 years back
-      break;
-    case '10Y':
-      resolution = 'M';
-      from = now - (10 * 365 * 24 * 60 * 60); // 10 years back
-      break;
-    case 'MAX':
-      resolution = 'M';
-      from = now - (20 * 365 * 24 * 60 * 60); // 20 years back (max)
-      break;
-    default:
-      resolution = 'D';
-      from = now - (30 * 24 * 60 * 60); // Default to 1 month
-  }
-  
-  return { resolution, from, to: now };
-};
-
-/**
- * Fetch stock data from Finnhub API
- */
-const fetchStockDataFinnhub = async (symbol, range) => {
-  try {
-    // Ensure we have a valid, non-empty symbol
-    if (!symbol) {
-      return { 
-        noData: true, 
-        error: 'Symbol parameter is required' 
-      };
-    }
-
-    // Clean and encode parameters properly
-    const encodedSymbol = encodeURIComponent(symbol.trim().toUpperCase());
-    
-    // Get range parameters
-    const { resolution, from, to } = getRangeParameters(range);
-    
-    console.log(`Fetching Finnhub data for ${encodedSymbol} with range ${range} (resolution: ${resolution}, from: ${from}, to: ${to})`);
-    
-    // Fetch quote data first (current price, change, etc.)
-    const quoteResponse = await fetch(
-      `${CONFIG.FINNHUB_API_URL}/quote?symbol=${encodedSymbol}&token=${CONFIG.FINNHUB_API_KEY}`
-    );
-    
-    if (!quoteResponse.ok) {
-      throw new Error(`Failed to fetch quote data: ${quoteResponse.statusText}`);
-    }
-    
-    const quoteData = await quoteResponse.json();
-    
-    // Check if we got a valid response
-    if (quoteData.error) {
-      return { 
-        noData: true, 
-        error: quoteData.error 
-      };
-    }
-    
-    // Fetch company profile for name
-    const profileResponse = await fetch(
-      `${CONFIG.FINNHUB_API_URL}/stock/profile2?symbol=${encodedSymbol}&token=${CONFIG.FINNHUB_API_KEY}`
-    );
-    
-    let companyName = encodedSymbol;
-    if (profileResponse.ok) {
-      const profileData = await profileResponse.json();
-      companyName = profileData.name || encodedSymbol;
-    }
-    
-    // Fetch historical data
-    const historyUrl = `${CONFIG.FINNHUB_API_URL}/stock/candle?symbol=${encodedSymbol}&resolution=${resolution}&from=${from}&to=${to}&token=${CONFIG.FINNHUB_API_KEY}`;
-    console.log(`Fetching historical data from: ${historyUrl}`);
-    
-    const historyResponse = await fetch(historyUrl);
-    
-    if (!historyResponse.ok) {
-      throw new Error(`Failed to fetch historical data: ${historyResponse.statusText}`);
-    }
-    
-    const historyData = await historyResponse.json();
-    console.log(`History data response status: ${historyData.s}, data points: ${historyData.t ? historyData.t.length : 0}`);
-    
-    // Check if we got valid history
-    if (historyData.s === 'no_data') {
-      console.error('No historical data returned for query:', { symbol, range, resolution, from, to });
-      return { 
-        noData: true, 
-        error: 'No historical data available for this symbol and timeframe' 
-      };
-    }
-    
-    // Ensure the data has enough points for charting
-    if (!historyData.t || historyData.t.length < 2) {
-      console.error('Not enough data points for charting:', { symbol, range, dataPoints: historyData.t ? historyData.t.length : 0 });
-      return {
-        noData: true,
-        error: 'Not enough data points available for this timeframe'
-      };
-    }
-
-    // For 1D specifically, ensure we have minute-level data
-    if (range.toUpperCase() === '1D' && historyData.t.length < 10) {
-      console.log('Insufficient 1D data points, falling back to 5D data with higher resolution');
-      // Fall back to 5D with 5-minute resolution
-      const fallbackFrom = from - (3 * 24 * 60 * 60); // Go back 5 days total
-      
-      const fallbackHistoryUrl = `${CONFIG.FINNHUB_API_URL}/stock/candle?symbol=${encodedSymbol}&resolution=5&from=${fallbackFrom}&to=${to}&token=${CONFIG.FINNHUB_API_KEY}`;
-      const fallbackResponse = await fetch(fallbackHistoryUrl);
-      
-      if (fallbackResponse.ok) {
-        const fallbackData = await fallbackResponse.json();
-        if (fallbackData.s === 'ok' && fallbackData.t && fallbackData.t.length >= 10) {
-          console.log(`Using fallback data with ${fallbackData.t.length} data points`);
-          historyData = fallbackData;
-        }
-      }
-    }
-    
-    // Format the response to match our app's expected format
-    return {
-      t: historyData.t,
-      o: historyData.o,
-      h: historyData.h,
-      l: historyData.l,
-      c: historyData.c,
-      v: historyData.v,
-      currentPrice: quoteData.c,
-      change: quoteData.d,
-      changePercent: quoteData.dp,
-      companyName
-    };
-  } catch (error) {
-    console.error('Error fetching stock data from Finnhub:', error);
-    return { 
-      noData: true, 
-      error: 'Failed to fetch stock data. Please try again.' 
-    };
-  }
-};
-
-/**
- * Search stock symbols using Finnhub API
- */
-const searchStockSymbolsFinnhub = async (keyword) => {
-  if (!keyword || keyword.length < 2) return [];
-  
-  try {
-    // Clean and encode the keyword properly
-    const encodedKeyword = encodeURIComponent(keyword.trim().toLowerCase());
-    
-    console.log(`Searching Finnhub stocks with query: ${encodedKeyword}`);
-    
-    const response = await fetch(
-      `${CONFIG.FINNHUB_API_URL}/search?q=${encodedKeyword}&token=${CONFIG.FINNHUB_API_KEY}`
-    );
-    
-    if (!response.ok) {
-      console.error('Error searching stocks:', response.statusText);
-      return [];
-    }
-    
-    const data = await response.json();
-    
-    // Format the response to match our app's expected format
-    if (data.result && Array.isArray(data.result)) {
-      return data.result
-        .filter(item => item.type === 'Common Stock' && !item.symbol.includes('.'))
-        .map(item => ({
-          symbol: item.symbol,
-          name: item.description
-        }));
-    }
-    
-    return [];
-  } catch (error) {
-    console.error('Error searching stocks from Finnhub:', error);
-    return [];
-  }
-};
-
-// =====================================================
 // EXPORTED FUNCTIONS
 // =====================================================
 
@@ -478,28 +268,50 @@ const searchStockSymbolsFinnhub = async (keyword) => {
  * Fetch stock data
  */
 export const fetchStockData = async (symbol, range) => {
-  // Use mock data if configured to do so
-  if (CONFIG.USE_MOCK_DATA) {
-    console.log('Using MOCK stock data mode');
-    return fetchStockDataLocal(symbol, range);
+  // Always try the Alpha Vantage API first
+  if (!CONFIG.USE_MOCK_DATA) {
+    try {
+      console.log('Using Alpha Vantage stock data API');
+      const alphaVantageData = await alphaVantageService.fetchStockData(symbol, range);
+      
+      // If we got valid data, return it
+      if (!alphaVantageData.noData && !alphaVantageData.error) {
+        return alphaVantageData;
+      }
+      
+      console.warn('Alpha Vantage API failed, falling back to mock data:', alphaVantageData.error);
+    } catch (error) {
+      console.error('Error with Alpha Vantage API, falling back to mock data:', error);
+    }
   }
   
-  // Otherwise use Finnhub implementation
-  console.log('Using Finnhub stock data API');
-  return fetchStockDataFinnhub(symbol, range);
+  // Use mock data as fallback or if configured to do so
+  console.log('Using MOCK stock data mode');
+  return fetchStockDataLocal(symbol, range);
 };
 
 /**
  * Search stock symbols
  */
 export const searchStockSymbols = async (keyword) => {
-  // Use mock data if configured to do so
-  if (CONFIG.USE_MOCK_DATA) {
-    console.log('Using MOCK stock search mode');
-    return searchStockSymbolsLocal(keyword);
+  // Always try the Alpha Vantage API first
+  if (!CONFIG.USE_MOCK_DATA) {
+    try {
+      console.log('Using Alpha Vantage stock search API');
+      const alphaVantageResults = await alphaVantageService.searchStockSymbols(keyword);
+      
+      // If we got valid results, return them
+      if (alphaVantageResults && alphaVantageResults.length > 0) {
+        return alphaVantageResults;
+      }
+      
+      console.warn('Alpha Vantage search returned no results, falling back to mock data');
+    } catch (error) {
+      console.error('Error with Alpha Vantage search API, falling back to mock data:', error);
+    }
   }
   
-  // Otherwise use Finnhub implementation
-  console.log('Using Finnhub stock search API');
-  return searchStockSymbolsFinnhub(keyword);
+  // Use mock data as fallback or if configured to do so
+  console.log('Using MOCK stock search mode');
+  return searchStockSymbolsLocal(keyword);
 }; 
