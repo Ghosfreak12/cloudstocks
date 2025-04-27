@@ -10,7 +10,7 @@ const CONFIG = {
   ALPHA_VANTAGE_API_URL: 'https://www.alphavantage.co/query',
   
   // Feature flags
-  USE_MOCK_DATA: true // Set to true to use mock data instead of API
+  USE_MOCK_DATA: false // Set to true to use mock data instead of API
 };
 
 // Import functions from alpha-vantage-service.js
