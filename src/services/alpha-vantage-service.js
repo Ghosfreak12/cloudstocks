@@ -1,152 +1,19 @@
 /**
- * Alpha Vantage API Service
- * Handles all interactions with the Alpha Vantage API
+ * Alpha Vantage Stock Data Service
+ * Uses Alpha Vantage API for stock market data
  */
 
 // Configuration
-const ALPHA_VANTAGE_CONFIG = {
-  API_KEY: 'Y40XKL904QT19YSB', // Replace with your Alpha Vantage API key
-  BASE_URL: 'https://www.alphavantage.co/query',
-  SEARCH_URL: 'https://www.alphavantage.co/query?function=SYMBOL_SEARCH'
+const CONFIG = {
+  API_KEY: 'Y40XKL904QT19YSB',
+  BASE_URL: 'https://www.alphavantage.co/query'
 };
 
 /**
- * Get appropriate time series function and parameters based on range
- * @param {string} range - Time range (1D, 5D, 1M, 1Y, 5Y, etc.)
- * @returns {Object} - Parameters for Alpha Vantage API
- */
-function getTimeSeriesParams(range) {
-  switch (range) {
-    case '1D':
-      return { 
-        timeFunction: 'TIME_SERIES_INTRADAY', 
-        outputSize: 'compact',
-        interval: '5min'
-      };
-    case '5D':
-      return { 
-        timeFunction: 'TIME_SERIES_INTRADAY', 
-        outputSize: 'full',
-        interval: '30min'
-      };
-    case '1M':
-      return { 
-        timeFunction: 'TIME_SERIES_DAILY',
-        outputSize: 'compact',
-        interval: null
-      };
-    case '3M':
-    case '6M':
-      return { 
-        timeFunction: 'TIME_SERIES_DAILY',
-        outputSize: 'full',
-        interval: null
-      };
-    case '1Y':
-    case '2Y':
-      return { 
-        timeFunction: 'TIME_SERIES_WEEKLY',
-        outputSize: 'full',
-        interval: null
-      };
-    case '5Y':
-    default:
-      return { 
-        timeFunction: 'TIME_SERIES_MONTHLY',
-        outputSize: 'full',
-        interval: null
-      };
-  }
-}
-
-/**
- * Get the appropriate time series key from the Alpha Vantage response
- * @param {string} timeFunction - The time series function used
- * @param {string|null} interval - The interval for intraday data
- * @returns {string} - The key to access time series data in the API response
- */
-function getTimeSeriesKey(timeFunction, interval) {
-  switch (timeFunction) {
-    case 'TIME_SERIES_INTRADAY':
-      return `Time Series (${interval})`;
-    case 'TIME_SERIES_DAILY':
-      return 'Time Series (Daily)';
-    case 'TIME_SERIES_WEEKLY':
-      return 'Weekly Time Series';
-    case 'TIME_SERIES_MONTHLY':
-      return 'Monthly Time Series';
-    default:
-      return 'Time Series (Daily)';
-  }
-}
-
-/**
- * Format time series data for our application
- * @param {Object} timeSeries - Time series data from Alpha Vantage
- * @param {string} symbol - Stock symbol
- * @returns {Object} - Formatted data for our dashboard
- */
-function formatTimeSeriesData(timeSeries, symbol) {
-  try {
-    // Convert the time series object into an array of data points
-    const formattedData = Object.entries(timeSeries).map(([timestamp, values]) => {
-      // Different time series have slightly different field names
-      const open = parseFloat(values['1. open'] || values.open);
-      const high = parseFloat(values['2. high'] || values.high);
-      const low = parseFloat(values['3. low'] || values.low);
-      const close = parseFloat(values['4. close'] || values.close);
-      const volume = parseInt(values['5. volume'] || values.volume, 10);
-      
-      return {
-        date: new Date(timestamp).getTime(),
-        open,
-        high,
-        low,
-        close,
-        volume
-      };
-    });
-    
-    // Sort data by date (oldest to newest)
-    formattedData.sort((a, b) => a.date - b.date);
-    
-    // Only return the last 100 data points if there are more
-    const limitedData = formattedData.length > 100 
-      ? formattedData.slice(-100) 
-      : formattedData;
-    
-    return {
-      symbol,
-      data: limitedData
-    };
-  } catch (error) {
-    console.error('Error formatting time series data:', error);
-    return {
-      noData: true,
-      error: 'Failed to process stock data'
-    };
-  }
-}
-
-/**
- * Format search results data
- * @param {Array} matches - Search matches from Alpha Vantage
- * @returns {Array} - Formatted search results for our application
- */
-function formatSearchResults(matches) {
-  return matches.map(item => ({
-    symbol: item['1. symbol'],
-    name: item['2. name'],
-    type: item['3. type'],
-    region: item['4. region']
-  }));
-}
-
-/**
- * Get historical time series data for a stock
- * @param {string} symbol - Stock symbol
- * @param {string} range - Time range (1D, 5D, 1M, 1Y, 5Y, etc.)
- * @returns {Promise<Object>} - Stock data or error
+ * Fetch stock data for a given symbol and time interval
+ * @param {string} symbol - Stock symbol (e.g., AAPL, MSFT)
+ * @param {string} range - Time range (1D, 5D, 1M, etc.)
+ * @returns {Promise<Object>} Stock data in the format expected by the app
  */
 export const fetchStockData = async (symbol, range) => {
   if (!symbol) {
@@ -156,96 +23,242 @@ export const fetchStockData = async (symbol, range) => {
     };
   }
 
+  // Convert range to Alpha Vantage format
+  const { function: timeSeries, outputsize, interval } = convertRangeToParams(range);
+  
   try {
-    console.log(`Fetching Alpha Vantage data for ${symbol} with range ${range}`);
+    console.log(`Fetching data from Alpha Vantage for ${symbol} with range ${range}`);
     
-    // Determine function and interval based on the range
-    const { timeFunction, outputSize, interval } = getTimeSeriesParams(range);
+    const url = `${CONFIG.BASE_URL}?function=${timeSeries}&symbol=${symbol}&apikey=${CONFIG.API_KEY}${interval ? `&interval=${interval}` : ''}${outputsize ? `&outputsize=${outputsize}` : ''}`;
     
-    // Build API URL
-    const url = `${ALPHA_VANTAGE_CONFIG.BASE_URL}?function=${timeFunction}&symbol=${symbol}&outputsize=${outputSize}${interval ? '&interval=' + interval : ''}&apikey=${ALPHA_VANTAGE_CONFIG.API_KEY}`;
-    
-    // Fetch data from Alpha Vantage
     const response = await fetch(url);
-    
     if (!response.ok) {
-      throw new Error(`Failed to fetch data: ${response.statusText}`);
+      throw new Error(`API request failed with status ${response.status}`);
     }
     
     const data = await response.json();
     
-    // Check for Alpha Vantage error messages
+    // Check for API error messages
     if (data['Error Message']) {
-      return { 
-        noData: true, 
-        error: data['Error Message'] 
+      return {
+        noData: true,
+        error: data['Error Message']
       };
     }
     
     if (data['Note']) {
-      console.warn('Alpha Vantage API limit message:', data['Note']);
-    }
-    
-    // Get the time series data based on the function used
-    const timeSeriesKey = getTimeSeriesKey(timeFunction, interval);
-    const timeSeries = data[timeSeriesKey];
-    
-    if (!timeSeries) {
-      console.error('No time series data found in response', data);
-      return { 
-        noData: true, 
-        error: 'No data available for this symbol and timeframe' 
+      console.warn('Alpha Vantage API limit reached:', data['Note']);
+      return {
+        noData: true,
+        error: 'API call frequency limit reached. Please try again later.'
       };
     }
     
-    // Format the data for our app
-    return formatTimeSeriesData(timeSeries, symbol);
-    
+    // Transform data to the format expected by the app
+    return transformAlphaVantageData(data, symbol, range);
   } catch (error) {
     console.error('Error fetching stock data from Alpha Vantage:', error);
     return { 
       noData: true, 
-      error: 'Failed to fetch stock data. Please try again.' 
+      error: error.message || 'Failed to fetch stock data. Please try again.' 
     };
   }
 };
 
 /**
  * Search for stock symbols
- * @param {string} keyword - Search term
- * @returns {Promise<Array>} - Search results
+ * @param {string} keyword - Search keyword
+ * @returns {Promise<Array>} List of matching stocks
  */
 export const searchStockSymbols = async (keyword) => {
-  if (!keyword || keyword.length < 1) {
-    return [];
-  }
+  if (!keyword || keyword.length < 2) return [];
   
   try {
-    console.log(`Searching Alpha Vantage for "${keyword}"`);
+    console.log(`Searching Alpha Vantage for: ${keyword}`);
     
-    // Build search URL
-    const url = `${ALPHA_VANTAGE_CONFIG.SEARCH_URL}&keywords=${encodeURIComponent(keyword)}&apikey=${ALPHA_VANTAGE_CONFIG.API_KEY}`;
+    const url = `${CONFIG.BASE_URL}?function=SYMBOL_SEARCH&keywords=${encodeURIComponent(keyword)}&apikey=${CONFIG.API_KEY}`;
     
-    // Fetch search results
     const response = await fetch(url);
-    
     if (!response.ok) {
-      throw new Error(`Search request failed: ${response.statusText}`);
+      throw new Error(`API request failed with status ${response.status}`);
     }
     
     const data = await response.json();
     
-    // Check if we have matches
-    if (!data.bestMatches || !Array.isArray(data.bestMatches)) {
-      console.warn('No matches found or unexpected response format', data);
-      return [];
+    // Detailed logging to debug the issue
+    console.log('Alpha Vantage search response:', data);
+    
+    // Check for API error messages
+    if (data['Error Message']) {
+      console.error('Alpha Vantage API error:', data['Error Message']);
+      return getMockSearchResults(keyword);
     }
     
-    // Format and return search results
-    return formatSearchResults(data.bestMatches);
+    if (data['Note']) {
+      console.warn('Alpha Vantage API limit reached:', data['Note']);
+      return getMockSearchResults(keyword);
+    }
     
+    if (!data.bestMatches || !Array.isArray(data.bestMatches) || data.bestMatches.length === 0) {
+      console.log('No search results or invalid format, using mock data');
+      return getMockSearchResults(keyword);
+    }
+    
+    // Transform search results to the format expected by the app
+    return data.bestMatches.map(match => ({
+      symbol: match['1. symbol'],
+      name: match['2. name']
+    }));
   } catch (error) {
-    console.error('Error searching stock symbols:', error);
-    return [];
+    console.error('Error searching stocks from Alpha Vantage:', error);
+    return getMockSearchResults(keyword);
   }
-}; 
+};
+
+/**
+ * Convert app range format to Alpha Vantage parameters
+ */
+function convertRangeToParams(range) {
+  switch (range.toUpperCase()) {
+    case '1D':
+      return { 
+        function: 'TIME_SERIES_INTRADAY', 
+        interval: '5min',
+        outputsize: 'compact' 
+      };
+    case '1W':
+      return { 
+        function: 'TIME_SERIES_INTRADAY', 
+        interval: '60min',
+        outputsize: 'compact' 
+      };
+    case '1M':
+      return { 
+        function: 'TIME_SERIES_DAILY', 
+        outputsize: 'compact' 
+      };
+    case '3M':
+    case '6M':
+    case 'YTD':
+      return { 
+        function: 'TIME_SERIES_DAILY', 
+        outputsize: 'full' 
+      };
+    case '1Y':
+    case '2Y':
+      return { 
+        function: 'TIME_SERIES_WEEKLY' 
+      };
+    case '5Y':
+    case '10Y':
+      return { 
+        function: 'TIME_SERIES_MONTHLY' 
+      };
+    default:
+      return { 
+        function: 'TIME_SERIES_DAILY', 
+        outputsize: 'compact' 
+      };
+  }
+}
+
+/**
+ * Transform Alpha Vantage data to the format expected by the app
+ */
+function transformAlphaVantageData(data, symbol, range) {
+  // Identify the time series based on the function used
+  let timeSeries;
+  let timeKey;
+  
+  if (data['Time Series (5min)']) {
+    timeSeries = data['Time Series (5min)'];
+    timeKey = 'Time Series (5min)';
+  } else if (data['Time Series (60min)']) {
+    timeSeries = data['Time Series (60min)'];
+    timeKey = 'Time Series (60min)';
+  } else if (data['Time Series (Daily)']) {
+    timeSeries = data['Time Series (Daily)'];
+    timeKey = 'Time Series (Daily)';
+  } else if (data['Weekly Time Series']) {
+    timeSeries = data['Weekly Time Series'];
+    timeKey = 'Weekly Time Series';
+  } else if (data['Monthly Time Series']) {
+    timeSeries = data['Monthly Time Series'];
+    timeKey = 'Monthly Time Series';
+  } else {
+    // No time series found
+    return {
+      noData: true,
+      error: 'No data available for this symbol and range.'
+    };
+  }
+  
+  // Get dates in order (most recent first)
+  const dates = Object.keys(timeSeries).sort((a, b) => new Date(b) - new Date(a));
+  
+  if (dates.length === 0) {
+    return {
+      noData: true,
+      error: 'No price data available for this symbol and range.'
+    };
+  }
+  
+  // Extract time and price data
+  const timestamps = dates.map(date => Math.floor(new Date(date).getTime() / 1000));
+  const closes = dates.map(date => parseFloat(timeSeries[date]['4. close']));
+  const opens = dates.map(date => parseFloat(timeSeries[date]['1. open']));
+  const highs = dates.map(date => parseFloat(timeSeries[date]['2. high']));
+  const lows = dates.map(date => parseFloat(timeSeries[date]['3. low']));
+  const volumes = dates.map(date => parseInt(timeSeries[date]['5. volume']));
+  
+  // Get the latest price for current price
+  const currentPrice = closes[0];
+  
+  // Calculate change and change percent
+  const previousClose = closes[1] || closes[0];
+  const change = currentPrice - previousClose;
+  const changePercent = (change / previousClose) * 100;
+  
+  // Get metadata
+  const metaData = data['Meta Data'] || {};
+  let companyName = metaData['2. Symbol'] || symbol;
+  
+  return {
+    t: timestamps,
+    c: closes,
+    o: opens,
+    h: highs,
+    l: lows,
+    v: volumes,
+    currentPrice,
+    change,
+    changePercent,
+    companyName
+  };
+}
+
+function getMockSearchResults(keyword) {
+  const mockStocks = [
+    { symbol: 'AAPL', name: 'Apple Inc.' },
+    { symbol: 'MSFT', name: 'Microsoft Corporation' },
+    { symbol: 'GOOGL', name: 'Alphabet Inc.' },
+    { symbol: 'AMZN', name: 'Amazon.com Inc.' },
+    { symbol: 'META', name: 'Meta Platforms Inc.' },
+    { symbol: 'TSLA', name: 'Tesla Inc.' },
+    { symbol: 'NVDA', name: 'NVIDIA Corporation' },
+    { symbol: 'TSM', name: 'Taiwan Semiconductor Manufacturing' },
+    { symbol: 'JPM', name: 'JPMorgan Chase & Co.' },
+    { symbol: 'V', name: 'Visa Inc.' },
+    { symbol: 'INTC', name: 'Intel Corporation' },
+    { symbol: 'AMD', name: 'Advanced Micro Devices, Inc.' },
+    { symbol: 'IBM', name: 'International Business Machines' }
+  ];
+  
+  if (!keyword) return [];
+  
+  const lowercaseKeyword = keyword.toLowerCase();
+  return mockStocks.filter(stock => 
+    stock.symbol.toLowerCase().includes(lowercaseKeyword) || 
+    stock.name.toLowerCase().includes(lowercaseKeyword)
+  );
+}

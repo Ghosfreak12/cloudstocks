@@ -32,7 +32,7 @@ jobs:
           aws lambda update-function-code \
             --function-name stockLambda \
             --zip-file fileb://function.zip
-
+            
       - name: Load sample data
         run: node load-sample-data.js --force
 

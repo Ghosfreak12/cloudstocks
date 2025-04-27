@@ -33,7 +33,7 @@ export default function SymbolSearch({ onSelect }) {
     <div className="relative w-full">
       <input
         className="bg-gray-700 border-gray-600 text-gray-200 px-3 py-2 w-full rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-        placeholder="Search symbol (e.g. TSLA)"
+        placeholder="Search symbol"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         disabled={isLoading}

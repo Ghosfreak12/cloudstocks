@@ -1,36 +1,18 @@
 /**
  * CloudStocks: A Real-Time Stock Market Dashboard on AWS
  * Author: Rishal Khatri
- *
- * Objective:
- * CloudStocks provides real-time and historical stock data through a serverless AWS architecture.
- * It is designed to support 100 users with <500ms latency, deployed by the end of the semester.
- *
- * SMART Goals:
- * - Specific: Real-time & historical stock dashboard on AWS.
- * - Measurable: <500ms latency for 100 users.
- * - Achievable: Serverless AWS architecture.
- * - Relevant: Course-aligned AWS solution.
- * - Time-bound: Complete by semester end.
- *
- * AWS Well-Architected Integration Notes:
- * - [SEC 2] Secure API Gateway V2 with IAM Identity Center (for real use).
- * - [REL 3] Lambda, API Gateway, and DynamoDB across two regions (planned).
- * - [PERF 3] Optimized DynamoDB <500ms latency (planned).
- * - [COST 9] Serverless architecture for cost-efficiency.
- * - [OPS 8] CloudWatch alerts for latency issues (future integration).
  */
 
 import React, { useEffect, useState } from 'react'
-import { fetchStockData, searchStockSymbols } from '../services/simplified-service'
+import { fetchStockData } from '../services/simplified-service'
 import SymbolSearch from '../components/SymbolSearch'
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, 
   ReferenceLine, Area, ComposedChart
 } from 'recharts'
 
-// Updated time range options to include 5Y and 10Y
-const RANGES = ['1D', '5D', '1M', '1Y', '5Y', '10Y', 'MAX']
+// Updated time range options to include all standard ranges
+const RANGES = ['1D', '1W', '1M', '3M', '6M', 'YTD', '1Y', '2Y', '5Y', '10Y']
 
 // Helper function for date formatting based on the selected range
 const formatDate = (timestamp, range) => {
@@ -38,15 +20,23 @@ const formatDate = (timestamp, range) => {
   
   switch(range) {
     case '1D':
-    case '5D':
       return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    case '1W': {
+      // Show day of week for 1W range
+      const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      return dayNames[date.getDay()];
+    }
     case '1M':
       return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+    case '3M':
+    case '6M':
+    case 'YTD':
+      return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
     case '1Y':
+    case '2Y':
       return date.toLocaleDateString([], { month: 'short', year: '2-digit' });
     case '5Y':
     case '10Y':
-    case 'MAX':
       return date.toLocaleDateString([], { month: 'short', year: 'numeric' });
     default:
       return date.toLocaleDateString();
@@ -67,8 +57,8 @@ const formatCurrency = (value) => {
 const CustomTooltip = ({ active, payload, label }) => {
   if (active && payload && payload.length) {
     return (
-      <div className="custom-tooltip bg-gray-800 p-3 border border-gray-700 rounded shadow-md">
-        <p className="font-semibold text-gray-200">{label}</p>
+      <div className="custom-tooltip bg-gray-800 p-2 border border-gray-700 rounded shadow-md">
+        <p className="text-gray-200">{label}</p>
         <p className="text-blue-400 font-bold">
           {formatCurrency(payload[0].value)}
         </p>
@@ -143,22 +133,19 @@ export default function Dashboard() {
           return
         }
         
-        // Format data for the chart - simple and safe
-        const formatted = []
+        // Format data for the chart - simpler version with fewer properties
+        const formatted = [];
         for (let i = 0; i < data.t.length; i++) {
+          // Only keep the essential data needed for the simplified chart
           formatted.push({
             time: formatDate(data.t[i], range),
             timestamp: data.t[i],
-            price: data.c[i] || 0,
-            open: data.o[i] || 0,
-            high: data.h[i] || 0,
-            low: data.l[i] || 0,
-            volume: data.v[i] || 0
-          })
+            price: data.c[i] || 0
+          });
         }
 
-        console.log(`Formatted ${formatted.length} data points`)
-        setStockData(formatted)
+        console.log(`Formatted ${formatted.length} data points`);
+        setStockData(formatted);
         
         // Set stock info with proper fallbacks for all values
         setStockInfo({
@@ -196,6 +183,21 @@ export default function Dashboard() {
   const gradientStart = priceChange >= 0 ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)';
   const gradientEnd = 'rgba(18, 24, 38, 0)';
 
+  // For 1W view, find day boundary indices
+  const dayBoundaries = [];
+  if (range === '1W' && stockData.length > 0) {
+    let lastDay = -1;
+    stockData.forEach((point, index) => {
+      const date = new Date(point.timestamp * 1000);
+      const day = date.getDay();
+      if (day !== lastDay && lastDay !== -1) {
+        // Day changed, this is a boundary
+        dayBoundaries.push(index);
+      }
+      lastDay = day;
+    });
+  }
+
   return (
     <div className="p-4 sm:p-6 max-w-6xl mx-auto bg-gray-900 min-h-screen text-gray-200">
       <header className="mb-8">
@@ -205,7 +207,7 @@ export default function Dashboard() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
             </svg>
           </div>
-          <h1 className="text-3xl font-bold text-gray-100">Stock Dashboard</h1>
+          <h1 className="text-3xl font-bold text-gray-100">CloudStocks Dashboard</h1>
         </div>
         
         <div className="bg-gray-800 shadow-sm rounded-lg p-4 mb-6 border border-gray-700">
@@ -267,7 +269,7 @@ export default function Dashboard() {
                     </svg>
                   ) : (
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M12 13a1 1 0 100 2h5a1 1 0 001-1v-5a1 1 0 10-2 0v2.586l-4.293-4.293a1 1 0 00-1.414 0L8 9.586l-4.293-4.293a1 1 0 00-1.414 1.414l5 5a1 1 0 001.414 0L11 9.414 14.586 13H12z" clipRule="evenodd" />
+                      <path fillRule="evenodd" d="M12 13a1 1 0 100 2h5a1 1 0 001-1v-5a1 1 0 10-2 0v2.586l-4.293-4.293a1 1 0 01-1.414 0L8 9.586l-4.293-4.293a1 1 0 01-1.414 1.414l5 5a1 1 0 011.414 0L11 9.414 14.586 13H12z" clipRule="evenodd" />
                     </svg>
                   )}
                   {stockInfo.change >= 0 ? '+' : ''}{stockInfo.change.toFixed(2)} ({stockInfo.changePercent.toFixed(2)}%)
@@ -293,17 +295,19 @@ export default function Dashboard() {
             <ComposedChart data={stockData}>
               <defs>
                 <linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor={gradientStart} stopOpacity={0.8}/>
+                  <stop offset="5%" stopColor={gradientStart} stopOpacity={0.6}/>
                   <stop offset="95%" stopColor={gradientEnd} stopOpacity={0}/>
                 </linearGradient>
               </defs>
-              <CartesianGrid stroke="#374151" strokeDasharray="5 5" />
+              <CartesianGrid stroke="#374151" strokeDasharray="5 5" vertical={false} />
               <XAxis 
                 dataKey="time" 
                 tickLine={false}
                 axisLine={false}
                 tick={{ fontSize: 12, fill: '#9ca3af' }}
                 padding={{ left: 10, right: 10 }}
+                interval="preserveEnd"
+                tickCount={5}
               />
               <YAxis 
                 domain={[minPrice, maxPrice]} 
@@ -311,24 +315,19 @@ export default function Dashboard() {
                 tick={{ fontSize: 12, fill: '#9ca3af' }}
                 tickLine={false}
                 axisLine={false}
-                padding={{ top: 10, bottom: 10 }}
+                tickCount={5}
               />
-              <Tooltip content={<CustomTooltip />} />
-              <ReferenceLine y={stockInfo?.price} stroke="#6b7280" strokeDasharray="3 3" />
+              <Tooltip content={<CustomTooltip range={range} />} />
+              
               <Area 
                 type="monotone" 
                 dataKey="price" 
                 stroke={lineColor}
+                strokeWidth={2}
                 fillOpacity={1}
-                fill="url(#colorPrice)" 
-              />
-              <Line 
-                type="monotone" 
-                dataKey="price" 
-                stroke={lineColor} 
-                strokeWidth={2} 
+                fill="url(#colorPrice)"
                 dot={false}
-                activeDot={{ r: 6, stroke: '#1f2937', strokeWidth: 2 }}
+                activeDot={{ r: 5, stroke: '#1f2937', strokeWidth: 1 }}
               />
             </ComposedChart>
           </ResponsiveContainer>

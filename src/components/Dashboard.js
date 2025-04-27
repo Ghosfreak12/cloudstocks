@@ -24,14 +24,14 @@ const Dashboard = () => {
   return (
     <div className="dashboard">
       <header className="dashboard-header">
-        <h1>Stock Market Dashboard</h1>
+        <h1>CloudStocks Dashboard</h1>
         <SearchBar onSymbolSelect={handleSymbolSelect} />
       </header>
 
       <main className="dashboard-content">
         {!selectedSymbol ? (
           <div className="welcome-message">
-            <h2>Welcome to the Stock Dashboard</h2>
+            <h2>Welcome to the CloudStocks Dashboard</h2>
             <p>Search for a stock symbol above to view its data</p>
           </div>
         ) : (
