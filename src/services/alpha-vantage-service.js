@@ -1,11 +1,15 @@
 /**
  * Alpha Vantage Stock Data Service
  * Uses Alpha Vantage API for stock market data
+ * 
+ * Implements [SEC 3] Share resources securely with a third party
+ * API keys are stored in environment variables for security
  */
 
-// Configuration
+// Configuration with environment variable support
 const CONFIG = {
-  API_KEY: 'Y40XKL904QT19YSB',
+  // Use environment variable if available, otherwise fall back to default
+  API_KEY: import.meta.env.VITE_ALPHA_VANTAGE_API_KEY || 'API_KEY_NOT_FOUND',
   BASE_URL: 'https://www.alphavantage.co/query'
 };
 

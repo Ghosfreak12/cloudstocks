@@ -9,7 +9,6 @@ A React-based dashboard for tracking and visualizing stock market data.
 - Interactive charts for visualizing price trends
 - Configurable time ranges (daily, weekly, monthly, etc.)
 - Mock data support for development and testing
-- Secure layered architecture (AWS Well-Architected [SEC 5])
 - API request throttling (AWS Well-Architected [COST 9])
 
 ## Technologies Used
@@ -91,21 +90,20 @@ This project implements key principles from the AWS Well-Architected Framework:
 
 ### Security Pillar
 
-**[SEC 5] Create network layers**
+**[SEC 3] Share resources securely with a third party**
 
-The application implements a layered architecture to enhance security:
+The application implements secure resource sharing:
 
-1. **UI Layer** - React components that only handle presentation
-2. **Public API Layer** (`simplified-service.js`) - Entry point for UI components
-3. **Business Logic Layer** (`stock-service-gateway.js`) - Handles data transformation and business rules
-4. **Security/Network Layer** (`api-layer.js`) - Implements throttling and security controls
-5. **Data Access Layer** (`stock-service.js`) - Handles actual data fetching
+1. API keys are stored in environment variables for secure management
+2. Sensitive configuration is kept out of source code
+3. Environment variables are accessed at runtime
+4. Default fallbacks prevent application failures
 
-This layered approach:
-- Isolates security-sensitive code
-- Provides clear boundaries between components
-- Reduces the attack surface by controlling data flow between layers
-- Makes it easier to audit and secure individual layers
+Benefits:
+- Prevents exposing sensitive information
+- Follows security best practices for API key management
+- Enables secure deployment across environments
+- Simplifies security auditing
 
 ### Cost Optimization Pillar
 
@@ -131,6 +129,18 @@ To use the Alpha Vantage API with this application:
 1. Visit [Alpha Vantage](https://www.alphavantage.co/support/#api-key)
 2. Register for a free API key
 3. Add the key to your `.env` file as described above
+
+## API Key Security
+
+For secure API key management:
+
+1. Create a `.env` file in the root directory with your API keys:
+   ```
+   VITE_ALPHA_VANTAGE_API_KEY=your_api_key_here
+   ```
+2. The `.env` file is included in `.gitignore` to prevent accidentally committing sensitive information
+
+**Never share your API keys or commit them to public repositories.**
 
 ## License
 

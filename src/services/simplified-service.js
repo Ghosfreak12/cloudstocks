@@ -8,7 +8,7 @@
  * 1. UI Components (React components)
  * 2. Simplified Service (this file - public API for UI)
  * 3. Business Logic Layer (stock-service-gateway.js)
- * 4. Security/Network Layer (api-layer.js)
+ * 4. Security/Network Layer (api-security-layer.js)
  * 5. Data Access Layer (stock-service.js)
  */
 

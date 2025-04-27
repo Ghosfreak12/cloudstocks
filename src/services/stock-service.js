@@ -5,8 +5,8 @@
 
 // Configuration - update these values
 const CONFIG = {
-  // Alpha Vantage API key and URL
-  ALPHA_VANTAGE_API_KEY: 'Y40XKL904QT19YSB', // Replace with your Alpha Vantage API key
+  // Alpha Vantage API key and URL - using environment variables for security
+  ALPHA_VANTAGE_API_KEY: import.meta.env.VITE_ALPHA_VANTAGE_API_KEY || 'API_KEY_NOT_FOUND', 
   ALPHA_VANTAGE_API_URL: 'https://www.alphavantage.co/query',
   
   // Feature flags

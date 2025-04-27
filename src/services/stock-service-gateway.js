@@ -1,12 +1,11 @@
 /**
  * Stock Service Gateway - Business Logic Layer
  * 
- * Implements [SEC 5] Create network layers
  * This layer handles the business logic, data transformation, and error handling.
- * It sits between the UI components and the secure API layer.
+ * It sits between the UI components and the API layer.
  */
 
-import { fetchStockData as fetchApiStockData, searchStockSymbols as searchApiStockSymbols } from './api-layer';
+import { fetchStockData as fetchApiStockData, searchStockSymbols as searchApiStockSymbols } from './api-security-layer';
 
 /**
  * Prepares stock data for UI consumption
@@ -18,7 +17,7 @@ export const fetchStockData = async (symbol, range) => {
   try {
     console.log(`Gateway: fetching data for ${symbol} with range ${range}`);
     
-    // Call the secure API layer 
+    // Call the API layer 
     const data = await fetchApiStockData(symbol, range);
     
     // If the API returned an error, pass it along
