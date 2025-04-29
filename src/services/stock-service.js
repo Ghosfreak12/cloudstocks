@@ -19,20 +19,19 @@ import * as alphaVantageService from './alpha-vantage-service.js';
 import { getMockStocks, generateMockHistoricalData, searchMockStocks } from './mock-data.js';
 
 // =====================================================
-// LOCAL IMPLEMENTATION WITH MOCK DATA
+// AWS MOCK DATA IMPLEMENTATION
 // =====================================================
 
 /**
- * Local implementation of fetchStockData
+ * AWS implementation of fetchStockData
  */
-const fetchStockDataLocal = async (symbol, range) => {
+const fetchAwsMockData = async (symbol, range) => {
   // Add a small delay to simulate API call
   await new Promise(resolve => setTimeout(resolve, 300));
   
   try {
     // Handle uppercase/lowercase
     const normalizedSymbol = symbol.toUpperCase();
-    console.log(`Fetching local mock data for ${normalizedSymbol} with range ${range}`);
     
     // Generate historical data using our dedicated mock data service
     const result = await generateMockHistoricalData(normalizedSymbol, range);
@@ -58,7 +57,7 @@ const fetchStockDataLocal = async (symbol, range) => {
 };
 
 /**
- * Local implementation of searchStockSymbols
+ * AWS implementation of searchStockSymbols
  */
 const searchStockSymbolsLocal = async (keyword) => {
   // Small delay to simulate API call
@@ -67,7 +66,7 @@ const searchStockSymbolsLocal = async (keyword) => {
   if (!keyword || keyword.length < 2) return [];
   
   try {
-    console.log(`Searching locally for stocks matching: ${keyword}`);
+    console.log(`Searching AWS mock data for stocks matching: ${keyword}`);
     
     // Use our dedicated mock search function
     const results = await searchMockStocks(keyword);
@@ -75,7 +74,7 @@ const searchStockSymbolsLocal = async (keyword) => {
     
     return results;
   } catch (error) {
-    console.error('Error searching stocks locally:', error);
+    console.error('Error searching stocks from AWS mock data:', error);
     return [];
   }
 };
@@ -107,7 +106,7 @@ export const fetchStockData = async (symbol, range) => {
   // Always use mock data if configured
   if (CONFIG.USE_MOCK_DATA) {
     console.log('Using MOCK stock data mode (by configuration)');
-    return fetchStockDataLocal(normalizedSymbol, normalizedRange);
+    return fetchAwsMockData(normalizedSymbol, normalizedRange);
   }
   
   // Try Alpha Vantage API first
@@ -120,14 +119,14 @@ export const fetchStockData = async (symbol, range) => {
       return alphaVantageData;
     }
     
-    console.warn('Alpha Vantage API failed, falling back to mock data:', alphaVantageData.error);
+    console.warn('Alpha Vantage API failed, falling back to AWS mock data:', alphaVantageData.error);
   } catch (error) {
-    console.error('Error with Alpha Vantage API, falling back to mock data:', error);
+    console.error('Error with Alpha Vantage API, falling back to AWS mock data:', error);
   }
   
-  // Use mock data as final fallback
-  console.log('Using MOCK stock data mode (as final fallback)');
-  return fetchStockDataLocal(normalizedSymbol, normalizedRange);
+  // Use AWS mock data as fallback
+  console.log('Using AWS mock data as fallback');
+  return fetchAwsMockData(normalizedSymbol, normalizedRange);
 };
 
 /**
@@ -149,17 +148,15 @@ export const searchStockSymbols = async (keyword) => {
       return alphaVantageResults;
     }
     
-    console.log('Alpha Vantage search returned no results, falling back to mock data');
+    console.log('Alpha Vantage search returned no results, falling back to AWS mock data');
     
-    // Fall back to local search
-    console.log('Using MOCK stock search mode (as fallback)');
+    // Fall back to AWS mock search
     return searchStockSymbolsLocal(keyword);
     
   } catch (error) {
-    console.error('Error in searchStockSymbols, falling back to mock data:', error);
+    console.error('Error in searchStockSymbols, falling back to AWS mock data:', error);
     
-    // Final fallback to local
-    console.log('Using MOCK stock search mode (as final fallback)');
+    // Fallback to AWS mock data
     return searchStockSymbolsLocal(keyword);
   }
 }; 
