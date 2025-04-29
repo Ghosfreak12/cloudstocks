@@ -16,7 +16,7 @@ const CONFIG = {
 // Import functions from alpha-vantage-service.js
 import * as alphaVantageService from './alpha-vantage-service.js';
 // Import dedicated mock data service
-import { MOCK_STOCKS, generateMockHistoricalData, searchMockStocks } from './mock-data.js';
+import { getMockStocks, generateMockHistoricalData, searchMockStocks } from './mock-data.js';
 
 // =====================================================
 // LOCAL IMPLEMENTATION WITH MOCK DATA
@@ -35,7 +35,7 @@ const fetchStockDataLocal = async (symbol, range) => {
     console.log(`Fetching local mock data for ${normalizedSymbol} with range ${range}`);
     
     // Generate historical data using our dedicated mock data service
-    const result = generateMockHistoricalData(normalizedSymbol, range);
+    const result = await generateMockHistoricalData(normalizedSymbol, range);
     
     // Check if we got valid mock data
     if (!result) {
@@ -50,7 +50,10 @@ const fetchStockDataLocal = async (symbol, range) => {
     return result;
   } catch (error) {
     console.error('Error generating mock stock data:', error);
-    return { noData: true, error: error.message };
+    return { 
+      noData: true, 
+      error: `AWS API Gateway Error: ${error.message}. Check connection to AWS endpoint.` 
+    };
   }
 };
 
@@ -67,7 +70,7 @@ const searchStockSymbolsLocal = async (keyword) => {
     console.log(`Searching locally for stocks matching: ${keyword}`);
     
     // Use our dedicated mock search function
-    const results = searchMockStocks(keyword);
+    const results = await searchMockStocks(keyword);
     console.log(`Found ${results.length} matching stocks for "${keyword}"`);
     
     return results;
