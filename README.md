@@ -44,6 +44,3 @@ const CONFIG = {
 2. Register for a free API key
 3. Add it to your `.env` file
 
-## Security Note
-
-Never share your API keys or commit them to public repositories.
